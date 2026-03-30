@@ -1,0 +1,1655 @@
+tb<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>लोहार डेयरी फार्म</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2d6a4f">
+    <link rel="apple-touch-icon" href="applogo.png">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* =========================================
+           1. CSS VARIABLES (डिफ़ॉल्ट हरा रंग और थीम)
+           ========================================= */
+        :root {
+            --primary: #2d6a4f;         
+            --secondary: #40916c;       
+            --bg-grad: linear-gradient(135deg, #d8f3dc 0%, #b7e4c7 100%); 
+            --splash-bg: linear-gradient(135deg, #eafaf1 0%, #c8e6c9 100%);
+            --card: rgba(255, 255, 255, 0.9); 
+            --text: #1b4332;            
+            --header-bg: rgba(255, 255, 255, 0.95);
+            --border: rgba(0,0,0,0.1);  
+            --input-bg: #ffffff;        
+            --sub-text: #222;           
+        }
+
+        /* डार्क मोड के रंग */
+        [data-theme="dark"] {
+            --bg-grad: linear-gradient(135deg, #081c15 0%, #1b4332 100%);
+            --splash-bg: linear-gradient(135deg, #0a2e1d 0%, #11422b 100%);
+            --card: rgba(30, 30, 30, 0.95);
+            --text: #d8f3dc;            
+            --header-bg: #101010;
+            --border: rgba(255,255,255,0.2);
+            --input-bg: #2d2d2d;
+            --sub-text: #ddd;
+        }
+
+        /* =========================================
+           2. COLOR THEMES (कस्टम कलर्स) 
+           ========================================= */
+        [data-color="blue"] {
+            --primary: #2980b9; --secondary: #3498db;
+            --bg-grad: linear-gradient(135deg, #d6eaf8 0%, #aed6f1 100%);
+            --splash-bg: linear-gradient(135deg, #ebf5fb 0%, #d6eaf8 100%); --text: #154360;
+        }
+        [data-theme="dark"][data-color="blue"] {
+            --bg-grad: linear-gradient(135deg, #0b192c 0%, #154360 100%);
+            --splash-bg: linear-gradient(135deg, #091321 0%, #10334a 100%); --text: #d6eaf8;
+        }
+        [data-color="orange"] {
+            --primary: #d35400; --secondary: #e67e22;
+            --bg-grad: linear-gradient(135deg, #fae5d3 0%, #f5cba7 100%);
+            --splash-bg: linear-gradient(135deg, #fdf2e9 0%, #fae5d3 100%); --text: #6e2c00;
+        }
+        [data-theme="dark"][data-color="orange"] {
+            --bg-grad: linear-gradient(135deg, #2e1400 0%, #522000 100%);
+            --splash-bg: linear-gradient(135deg, #1f0d00 0%, #3d1800 100%); --text: #fae5d3;
+        }
+        [data-color="purple"] {
+            --primary: #8e44ad; --secondary: #9b59b6;
+            --bg-grad: linear-gradient(135deg, #ebdef0 0%, #d7bde2 100%);
+            --splash-bg: linear-gradient(135deg, #f5eef8 0%, #ebdef0 100%); --text: #4a235a;
+        }
+        [data-theme="dark"][data-color="purple"] {
+            --bg-grad: linear-gradient(135deg, #1f0b26 0%, #3a1447 100%);
+            --splash-bg: linear-gradient(135deg, #16071a 0%, #2c0f36 100%); --text: #ebdef0;
+        }
+
+        /* =========================================
+           3. GLOBAL STYLES 
+           ========================================= */
+        body { 
+            font-family: 'Segoe UI', 'Arial', sans-serif; 
+            margin: 0; min-height: 100vh;
+            background: var(--bg-grad) fixed; color: var(--text); 
+            transition: background 0.4s ease, color 0.4s ease; 
+            overflow-x: hidden;
+        }
+
+        .full-screen-overlay { 
+            position: fixed; top: 0; left: 0; 
+            width: 100%; height: 100%; background: var(--bg-grad); 
+            z-index: 9999; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; 
+        }
+        
+        #splash-screen { background: var(--splash-bg) !important; }
+        .full-screen-overlay.hidden { display: none !important; }
+
+        .splash-content { text-align: center; animation: pulseLogo 1.5s infinite; }
+        @keyframes pulseLogo { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        
+        .splash-footer { position: absolute; bottom: 30px; font-weight: bold; text-align: center; color: var(--text); font-size: 14px; opacity: 0.7; letter-spacing: 1px; }
+
+        #main-app { padding-top: 75px; }
+        #main-app.hidden { display: none !important; }
+
+        /* =========================================
+           4. HEADER NAV BAR
+           ========================================= */
+        .app-header { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 75px; 
+            background: var(--header-bg); display: flex; align-items: center; justify-content: space-between; 
+            padding: 0 15px; box-sizing: border-box; z-index: 1000; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2); backdrop-filter: blur(15px); border-bottom: 1px solid var(--border); 
+            transition: background 0.4s ease;
+        }
+        
+        .header-center { font-weight: 900; font-size: 18px; color: var(--primary); transition: color 0.4s ease; }
+        .header-right { display: flex; align-items: center; gap: 10px; position: relative; }
+        .circle-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--input-bg); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid var(--border); transition: transform 0.1s; }
+
+        /* =========================================
+           5. CARDS & TABS 
+           ========================================= */
+        .insight-card { 
+            background: var(--card); border-radius: 20px; padding: 15px; margin-bottom: 20px; 
+            border: 1px solid var(--border); display: flex; justify-content: space-around; 
+            text-align: center; transition: background 0.4s ease;
+        }
+        .insight-item span { display: block; font-size: 11px; color: var(--text); font-weight: 900; }
+        .insight-item b { font-size: 17px; color: var(--primary); font-weight: 900; transition: color 0.4s ease;}
+
+        .action-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+        .card-tab { background: var(--card); padding: 15px 5px; border-radius: 15px; text-align: center; font-weight: 900; cursor: pointer; transition: 0.3s; border: 2px solid transparent; color: var(--text); font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+        .card-tab.active { border-color: var(--primary); transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+        .card-tab-icon { font-size: 18px; }
+
+        /* =========================================
+           6. FORMS & INPUTS 
+           ========================================= */
+        .main-form-card { background: var(--card); border-radius: 25px; padding: 22px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); border: 1px solid var(--border); width: 100%; box-sizing: border-box; }
+        h3 { margin-top: 0; color: var(--primary); font-size: 19px; text-align: center; font-weight: 900; transition: color 0.4s ease;}
+        label { display: block; margin-top: 12px; font-size: 14px; font-weight: 800; color: var(--text); }
+        input, select { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); margin-top: 5px; box-sizing: border-box; font-size: 16px; outline: none; font-weight: 700; }
+
+        .btn-save { width: 100%; padding: 16px; border-radius: 15px; border: none; background: var(--primary); color: white; font-weight: 900; margin-top: 15px; font-size: 16px; cursor: pointer; letter-spacing: 0.5px; transition: 0.2s, background 0.4s ease; }
+        .btn-save:active { transform: scale(0.96); }
+        .btn-google { width: 100%; padding: 14px; border-radius: 15px; border: 1px solid var(--border); background: #ffffff; color: #444; font-weight: 900; margin-top: 15px; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: 0.3s; }
+        .btn-google:active { transform: scale(0.98); }
+
+        .divider-text { text-align: center; margin: 15px 0; font-size: 12px; font-weight: bold; color: var(--sub-text); position: relative; }
+        .divider-text::before, .divider-text::after { content: ""; position: absolute; top: 50%; width: 35%; height: 1px; background: var(--border); }
+        .divider-text::before { left: 0; } .divider-text::after { right: 0; }
+
+        /* ✨ SMART DATE FORMAT TRICK (DD-MM-YYYY) ✨ */
+        input[type="date"] {
+            position: relative;
+            color: transparent !important; 
+        }
+        input[type="date"]::-webkit-datetime-edit {
+            color: transparent;
+        }
+        input[type="date"]::before {
+            content: attr(data-date);
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text);
+            font-size: 16px;
+            font-weight: 700;
+            pointer-events: none;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            opacity: 1;
+            display: block;
+            cursor: pointer;
+            color: var(--text);
+        }
+        [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        /* =========================================
+           7. TABLES 
+           ========================================= */
+        .table-container { margin-top: 15px; max-height: 250px; overflow-y: auto; border-radius: 10px; border: 1px solid var(--border); background: var(--input-bg); }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        td, th { padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text); font-weight: 700; }
+        th { background: var(--primary); color: white; position: sticky; top: 0; z-index: 1; transition: background 0.4s ease;}
+        b.amt { color: var(--primary); font-weight: 900; font-size: 14px; transition: color 0.4s ease;}
+        .action-btn { cursor: pointer; font-size: 14px; padding: 4px; border-radius: 4px; background: rgba(0,0,0,0.05); }
+
+        /* =========================================
+           8. DROPDOWN MENUS & MISC 
+           ========================================= */
+        .dropdown { position: absolute; top: 55px; right: 0; background: var(--card); width: 260px; border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.3); padding: 15px; display: none; z-index: 2000; border: 1px solid var(--border); }
+        .hidden { display: none; }
+        .divider { height: 2px; background: var(--border); margin: 25px 0 15px 0; border-radius: 2px;}
+
+        #install-banner { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--primary); color: white; padding: 15px; text-align: center; box-sizing: border-box; z-index: 10000; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.2); }
+        #install-banner.hidden { display: none !important; }
+        #install-banner button { background: white; color: var(--primary); border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+
+        .weekly-summary-box { background: rgba(230, 126, 34, 0.1); padding: 15px; border-radius: 15px; margin-bottom: 15px; border: 1px solid #e67e22; color: var(--text); text-align: center; }
+
+        #img-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.95); z-index: 99999; display: none; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+
+        .toast-notification { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(150px); background: #27ae60; color: white; padding: 12px 25px; border-radius: 30px; font-weight: 900; font-size: 15px; box-shadow: 0 10px 30px rgba(39, 174, 96, 0.5); z-index: 100000; opacity: 0; display: flex; align-items: center; gap: 10px; transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); pointer-events: none; }
+        .toast-notification.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast-icon { font-size: 20px; background: rgba(255,255,255,0.2); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
+
+        .color-circle { width: 25px; height: 25px; border-radius: 50%; cursor: pointer; border: 2px solid var(--border); transition: transform 0.2s; }
+        .color-circle:hover { transform: scale(1.2); }
+        .color-circle.active { border: 2px solid var(--text); transform: scale(1.1); box-shadow: 0 0 8px rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body>
+
+    <div id="success-toast" class="toast-notification">
+        <div class="toast-icon">✅</div>
+        <span id="toast-msg">डेटा सेव हो गया!</span>
+    </div>
+
+    <div id="img-overlay">
+        <div style="font-size: 60px; animation: pulseLogo 1.5s infinite;">🖼️</div>
+        <h2 style="color: var(--primary); margin-top: 15px;">फोटो बिल बन रहा है...</h2>
+        <p style="color: #333; font-weight: bold; font-size: 14px;">कृपया 2 सेकंड प्रतीक्षा करें।</p>
+    </div>
+
+    <div id="splash-screen" class="full-screen-overlay">
+        <div class="splash-content">
+            <img src="applogo.png" alt="Logo" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; box-shadow: 0px 10px 20px rgba(0,0,0,0.2); margin-bottom: 10px; border: 4px solid var(--primary);">
+            <h1 style="color: var(--primary); margin-top: 10px; margin-bottom: 5px; font-size: 32px; font-weight: 900;">लोहार डेयरी फार्म</h1>
+            <p style="color: var(--text); font-size: 16px; font-weight: bold; opacity: 0.8; margin-top: 0;">सोच से सॉफ्टवेयर तक 🚀</p>
+        </div>
+        <div class="splash-footer">Developed & Coded <br> By - Deepak Lohar</div>
+    </div>
+
+    <div id="auth-screen" class="full-screen-overlay hidden">
+        <div class="main-form-card" style="max-width: 350px;">
+            <div style="text-align: center; font-size: 50px; margin-bottom: 10px;">🔐</div>
+            <h3>लॉगिन करें</h3>
+            <button type="button" class="btn-google" onclick="googleLogin()">
+                <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" style="width:20px;"> Google से सुरक्षित लॉगिन
+            </button>
+            <div class="divider-text">या ईमेल से लॉगिन करें</div>
+            <form id="login-form">
+                <label>ईमेल आईडी</label>
+                <input type="email" id="login-id" placeholder="अपना ईमेल डालें" required>
+                <label>पासवर्ड</label>
+                <input type="password" id="login-pass" placeholder="पासवर्ड डालें" required>
+                <button type="submit" class="btn-save">लॉगिन ➔</button>
+            </form>
+            <div style="text-align: center; margin-top: 15px;">
+                <span style="color: #e67e22; font-size: 14px; cursor: pointer; font-weight: bold; display: block; margin-bottom: 10px;" onclick="switchScreen('forgot-screen')">पासवर्ड भूल गए? (Reset)</span>
+                <span style="color: var(--primary); font-size: 15px; cursor: pointer; font-weight: 900;" onclick="switchScreen('signup-screen')">नया अकाउंट बनाएँ (Sign Up)</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="signup-screen" class="full-screen-overlay hidden">
+        <div class="main-form-card" style="max-width: 350px;">
+            <div style="text-align: center; font-size: 50px; margin-bottom: 10px;">📝</div>
+            <h3>नया अकाउंट बनाएँ</h3>
+            <button type="button" class="btn-google" onclick="googleLogin()">
+                <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" style="width:20px;"> Google से 1-क्लिक साइनअप
+            </button>
+            <div class="divider-text">या ईमेल से अकाउंट बनाएँ</div>
+            <form id="signup-form">
+                <label>ईमेल आईडी</label>
+                <input type="email" id="reg-id" placeholder="सही ईमेल आईडी डालें" required>
+                <label>पासवर्ड बनाएँ</label>
+                <input type="password" id="reg-pass" placeholder="नया सुरक्षित पासवर्ड बनाएँ" required>
+                <button type="submit" class="btn-save" style="background: #2980b9;">अकाउंट बनाएँ ➔</button>
+            </form>
+            <div style="text-align: center; margin-top: 15px;">
+                <span style="color: var(--text); font-size: 14px; cursor: pointer; font-weight: bold;" onclick="switchScreen('auth-screen')">पहले से अकाउंट है? लॉगिन करें</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="forgot-screen" class="full-screen-overlay hidden">
+        <div class="main-form-card" style="max-width: 350px;">
+            <div style="text-align: center; font-size: 50px; margin-bottom: 10px;">🆘</div>
+            <h3>पासवर्ड रीसेट करें</h3>
+            <p style="text-align: center; font-size: 12px; color: var(--sub-text);">अपना रजिस्टर किया हुआ ईमेल डालें, हम आपको पासवर्ड रीसेट करने का लिंक भेजेंगे।</p>
+            <form id="forgot-form">
+                <label>आपकी ईमेल आईडी</label>
+                <input type="email" id="f-id" placeholder="ईमेल डालें" required>
+                <button type="submit" class="btn-save" style="background: #e67e22;">पासवर्ड रीसेट लिंक भेजें 📩</button>
+                <div style="text-align: center; margin-top: 15px;">
+                    <span style="color: var(--text); font-size: 14px; cursor: pointer; font-weight: bold;" onclick="switchScreen('auth-screen')">🔙 वापस लॉगिन पर जाएँ</span>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="change-pass-screen" class="full-screen-overlay hidden">
+        <div class="main-form-card" style="max-width: 350px;">
+            <div style="text-align: center; font-size: 50px; margin-bottom: 10px;">🔑</div>
+            <h3>पासवर्ड बदलें</h3>
+            <form id="change-pass-form">
+                <label>पुराना पासवर्ड</label>
+                <input type="password" id="cp-old" placeholder="अपना वर्तमान पासवर्ड डालें" required>
+                <label>नया पासवर्ड</label>
+                <input type="password" id="cp-new" placeholder="नया सुरक्षित पासवर्ड बनाएँ" required>
+                <button type="submit" class="btn-save" style="background: #8e44ad;">पासवर्ड अपडेट करें 💾</button>
+                <div style="text-align: center; margin-top: 15px;">
+                    <span style="color: var(--text); font-size: 14px; cursor: pointer; font-weight: bold;" onclick="switchScreen('main-app')">🔙 रद्द करें (Cancel)</span>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="setup-screen" class="full-screen-overlay hidden">
+        <div class="main-form-card" style="max-width: 350px;">
+            <div style="text-align: center; font-size: 50px; margin-bottom: 10px;">👤</div>
+            <h3>प्रोफाइल बनाएं</h3>
+            <p style="text-align: center; font-size: 12px; color: var(--sub-text); margin-top: -5px;">अपनी पहचान सेट करें</p>
+            <form id="setup-form">
+                <label>आपका नाम</label>
+                <input type="text" id="setup-name" placeholder="अपना पूरा नाम लिखें" required>
+                <label>प्रोफाइल फोटो (वैकल्पिक)</label>
+                <input type="file" id="setup-pic" accept="image/*">
+                <button type="submit" class="btn-save" style="background: var(--secondary);">ऐप शुरू करें 🚀</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="main-app" class="hidden">
+        
+        <header class="app-header">
+            <div style="width: 80px;"></div>
+            <div class="header-center" style="font-size: 17px; display: flex; align-items: center; white-space: nowrap;">
+                <img src="applogo.png" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-right: 6px; border: 1.5px solid var(--primary); background: #fff;">
+                <span class="i18n-text">लोहार डेयरी फार्म</span>
+            </div>
+            
+            <div class="header-right" style="display: flex; align-items: center; gap: 12px;">
+                <div id="sync-indicator" onclick="showSyncStatus()" style="position: relative; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 2px;" title="Cloud Sync Status">
+                    <span style="font-size: 22px;">☁️</span>
+                    <span id="sync-dot" style="position: absolute; top: 0px; right: -2px; width: 10px; height: 10px; background-color: #27ae60; border-radius: 50%; border: 2px solid var(--header-bg); transition: background-color 0.3s; box-shadow: 0 0 5px rgba(0,0,0,0.2);"></span>
+                </div>
+
+                <div class="circle-btn" onclick="toggleMenu('settings-menu')">⚙️</div>
+                <div class="profile-stack" onclick="toggleMenu('profile-menu')" style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+                    <div class="pp-circle" style="width: 38px; height: 38px; border-radius: 50%; overflow: hidden; border: 1.5px solid var(--primary); background: #fff;">
+                        <img id="head-pic" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" style="width:100%; height:100%; object-fit:cover;">
+                    </div>
+                    <span id="nav-user-name-small" style="font-size: 11px; font-weight: 900; margin-top: 2px; color: var(--text); max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">यूजर</span>
+                </div>
+            </div>
+
+            <div id="settings-menu" class="dropdown" onclick="event.stopPropagation()">
+                <h4 style="margin:0; color:var(--primary); text-align: center;" class="i18n-text">सेटिंग्स</h4>
+                
+                <div style="margin-top: 15px; padding: 12px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 12px; text-align: center;">
+                    <span style="font-size: 12px; color: var(--sub-text); font-weight: bold;" class="i18n-text">वर्तमान लॉगिन अकाउंट:</span><br>
+                    <b id="setting-display-id" style="color: var(--primary); font-size: 13px; word-break: break-all;">---</b>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; padding: 0 5px;">
+                    <span style="color:var(--text); font-weight: bold;" class="i18n-text">भाषा (Language)</span>
+                    <select id="lang-select" onchange="changeAppLanguage()" style="width: auto; padding: 4px; font-weight: bold; background: var(--input-bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px;">
+                        <option value="hi">हिंदी</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; padding: 0 5px;">
+                    <span style="color:var(--text); font-weight: bold;" class="i18n-text">ऐप का रंग (Color)</span>
+                    <div style="display: flex; gap: 8px;">
+                        <div id="color-green" onclick="setAppColor('green')" class="color-circle" style="background: #2d6a4f;"></div>
+                        <div id="color-blue" onclick="setAppColor('blue')" class="color-circle" style="background: #2980b9;"></div>
+                        <div id="color-orange" onclick="setAppColor('orange')" class="color-circle" style="background: #d35400;"></div>
+                        <div id="color-purple" onclick="setAppColor('purple')" class="color-circle" style="background: #8e44ad;"></div>
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; padding: 0 5px;">
+                    <span style="color:var(--text); font-weight: bold;" class="i18n-text">डार्क मोड</span>
+                    <input type="checkbox" id="dark-toggle" style="width:30px; height:20px;">
+                </div>
+                
+                <div style="display:flex; gap: 8px; margin-top: 15px;">
+                    <button onclick="shareMyDairyApp()" style="flex:1; font-weight:bold; color:#27ae60; background:rgba(39, 174, 96, 0.1); border:1px solid #27ae60; border-radius:10px; padding:8px; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; gap:4px;">📤 <span class="i18n-text">शेयर करें</span></button>
+                    <button onclick="contactDeveloperSupport()" style="flex:1; font-weight:bold; color:#d35400; background:rgba(211, 84, 0, 0.1); border:1px solid #d35400; border-radius:10px; padding:8px; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; gap:4px;">🎧 <span class="i18n-text">सहायता</span></button>
+                </div>
+
+                <button onclick="openChangePassword()" style="margin-top:10px; width:100%; font-weight:bold; color:#8e44ad; background:none; border:2px solid #8e44ad; border-radius:10px; padding:10px; cursor:pointer;" class="i18n-text">🔑 पासवर्ड बदलें</button>
+                <button id="install-app-btn" class="hidden" onclick="installPWA()" style="margin-top:10px; width:100%; font-weight:bold; color:#fff; background:#2980b9; border:none; border-radius:10px; padding:10px; cursor:pointer;">📲 <span class="i18n-text">ऐप डाउनलोड/इंस्टॉल करें</span></button>
+                <button onclick="logoutApp()" style="margin-top:10px; width:100%; font-weight:bold; color:#e74c3c; background:none; border:2px solid #e74c3c; border-radius:10px; padding:10px; cursor:pointer;" class="i18n-text">लॉगआउट करें (Logout)</button>
+            </div>
+
+            <div id="profile-menu" class="dropdown" onclick="event.stopPropagation()">
+                <h4 style="margin:0; color:var(--primary);" class="i18n-text">प्रोफाइल एडिट करें</h4>
+                <input type="text" id="user-name-in" placeholder="अपना नाम लिखें">
+                <label class="i18n-text">फोटो बदलें</label>
+                <input type="file" id="user-pic-in" accept="image/*">
+                <button onclick="saveProfile()" class="btn-save" style="padding:10px; font-size:14px;" class="i18n-text">अपडेट करें</button>
+            </div>
+        </header>
+
+        <div class="container" style="padding: 15px; max-width: 450px; margin: auto;">
+            
+            <div class="insight-card">
+                <div class="insight-item">
+                    <span class="i18n-text">इस महीने</span>
+                    <b id="curr-month-total">₹0.00</b>
+                    <div id="curr-month-qty" style="font-size:12px; color:var(--text); font-weight:bold; margin-top:2px;">0.00 <span class="i18n-text">ली</span></div>
+                </div>
+                <div class="insight-item" style="border-left:1px solid var(--border); padding-left:15px;">
+                    <span class="i18n-text">पिछले महीने</span>
+                    <b id="prev-month-total">₹0.00</b>
+                    <div id="prev-month-qty" style="font-size:12px; color:var(--text); font-weight:bold; margin-top:2px;">0.00 <span class="i18n-text">ली</span></div>
+                </div>
+                <div class="insight-item" style="border-left:1px solid var(--border); padding-left:15px;">
+                    <span class="i18n-text">बदलाव</span>
+                    <b id="diff-status">--</b>
+                </div>
+            </div>
+
+            <div class="action-grid">
+                <div class="card-tab active" id="tab-milk" onclick="switchTab('milk')">
+                    <span class="card-tab-icon">🥛</span><div class="i18n-text">दूध एंट्री</div>
+                </div>
+                <div class="card-tab" id="tab-bandhi" onclick="switchTab('bandhi')">
+                    <span class="card-tab-icon">📋</span><div class="i18n-text">दूध बंधी</div>
+                </div>
+                <div class="card-tab" id="tab-invest" onclick="switchTab('invest')">
+                    <span class="card-tab-icon">💰</span><div class="i18n-text">पशु ट्रैकर</div>
+                </div>
+            </div>
+
+            <div id="milk-box" class="main-form-card">
+                <h3 class="i18n-text">दूध का हिसाब जोड़ें</h3>
+                <form id="milk-form">
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex:1">
+                            <label class="i18n-text">शिफ्ट चुनें</label>
+                            <select id="m-shift" required>
+                                <option value="morning">☀️ सुबह</option>
+                                <option value="evening">🌙 शाम</option>
+                            </select>
+                        </div>
+                        <div style="flex:1">
+                            <label class="i18n-text">तारीख</label>
+                            <input type="date" id="m-date" required>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <div style="flex:1">
+                            <label class="i18n-text">मात्रा (लीटर)</label>
+                            <input type="number" id="m-qty" placeholder="0.0" step="any" required>
+                        </div>
+                        <div style="flex:1">
+                            <label class="i18n-text">भाव (₹)</label>
+                            <input type="number" id="m-rate" placeholder="0.0" step="any" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-save">💾 <span class="i18n-text">डेटा सेव करें</span></button>
+                </form>
+
+                <div class="divider"></div>
+                <h3 style="margin-top: 10px;" class="i18n-text">📅 पिछली एंट्री देखें</h3>
+                <label class="i18n-text">महीना चुनें (Filter)</label>
+                <input type="month" id="filter-month" onchange="renderAll()" style="margin-bottom: 10px; background: var(--input-bg); color: var(--text); border: 2px solid var(--primary);">
+                
+                <div class="table-container">
+                    <table id="milk-table">
+                        <thead>
+                            <tr>
+                                <th class="i18n-text">तारीख</th>
+                                <th class="i18n-text">मात्रा (भाव)</th>
+                                <th class="i18n-text">रकम</th>
+                                <th style="text-align:center;" class="i18n-text">एक्शन</th>
+                            </tr>
+                        </thead>
+                        <tbody id="milk-body"></tbody>
+                    </table>
+                </div>
+                <button onclick="downloadImage('milk')" class="btn-save" style="background: #27ae60; box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3);">🖼️ <span class="i18n-text">दूध का बिल (Image) सेव करें</span></button>
+            </div>
+
+            <div id="bandhi-box" class="main-form-card hidden">
+                <h3 style="color: #d35400;" class="i18n-text">ग्राहक (दूध बंधी) जोड़ें</h3>
+                <form id="bandhi-form">
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex:1">
+                            <label class="i18n-text">ग्राहक का नाम</label>
+                            <input type="text" id="b-name" placeholder="नाम (जैसे: रमेश)" required>
+                        </div>
+                        <div style="flex:1">
+                            <label class="i18n-text">मोबाइल नंबर</label>
+                            <input type="number" id="b-phone" placeholder="10 अंकों का नंबर" required>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <div style="flex:1">
+                            <label class="i18n-text">एंट्री का प्रकार</label>
+                            <select id="b-type" onchange="toggleBandhiQty()" required>
+                                <option value="sale" class="i18n-text">🥛 दूध दिया (Sale)</option>
+                                <option value="payment" class="i18n-text">💰 पैसे जमा किए (Payment Received)</option>
+                            </select>
+                        </div>
+                        <div style="flex:1">
+                            <label class="i18n-text">तारीख</label>
+                            <input type="date" id="b-date" required>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <div style="flex:1" id="b-qty-container">
+                            <label class="i18n-text">मात्रा (लीटर)</label>
+                            <input type="number" id="b-qty" placeholder="जैसे: 1.5" step="any" required>
+                        </div>
+                        <div style="flex:1">
+                            <label class="i18n-text">रकम (₹)</label>
+                            <input type="number" id="b-amt" placeholder="जैसे: 60.50" step="any" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-save" style="background: #d35400;">💾 <span class="i18n-text">बंधी एंट्री सेव करें</span></button>
+                </form>
+
+                <div class="divider"></div>
+                <h3 style="margin-top: 10px; color: #d35400;" class="i18n-text">📅 ग्राहक का हिसाब (कुल बकाया)</h3>
+                
+                <select id="filter-customer" onchange="renderAll()" style="margin-bottom: 10px; background: var(--input-bg); color: var(--text); border: 2px solid #d35400;">
+                    <option value="">सभी ग्राहक (All Customers)</option>
+                </select>
+
+                <div id="weekly-summary" class="weekly-summary-box hidden">
+                    <b id="ws-name" style="font-size: 16px;">ग्राहक</b> <span class="i18n-text">का कुल बकाया हिसाब:</span><br>
+                    <div style="font-size: 14px; font-weight: bold; color: var(--text); margin-top: 5px;">
+                        <span class="i18n-text">कुल दूध:</span> ₹<span id="ws-sale">0.00</span> | 
+                        <span class="i18n-text">जमा:</span> <span style="color:#27ae60;">₹<span id="ws-paid">0.00</span></span>
+                    </div>
+                    <span style="font-size: 18px; font-weight: 900; color: #e74c3c;">
+                        <span class="i18n-text">बकाया:</span> ₹<span id="ws-amt">0.00</span>
+                    </span><br>
+                    <button class="btn-save" style="background: #25D366; margin-top: 12px; padding: 12px; font-size: 15px; box-shadow: 0 4px 10px rgba(37, 211, 102, 0.3); border-radius: 12px;" onclick="sendWhatsAppBill()">
+                        💬 <span class="i18n-text">WhatsApp पर बिल भेजें</span>
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table id="bandhi-table">
+                        <thead>
+                            <tr>
+                                <th class="i18n-text" style="background: #d35400;">तारीख</th>
+                                <th class="i18n-text" style="background: #d35400;">ग्राहक/मात्रा</th>
+                                <th class="i18n-text" style="background: #d35400;">रकम</th>
+                                <th style="text-align:center; background: #d35400;" class="i18n-text">एक्शन</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bandhi-body"></tbody>
+                    </table>
+                </div>
+                <button onclick="downloadImage('bandhi')" class="btn-save" style="background: #e67e22; box-shadow: 0 4px 10px rgba(230, 126, 34, 0.3);">🖼️ <span class="i18n-text">बंधी का बिल (Image) सेव करें</span></button>
+            </div>
+
+            <div id="invest-box" class="main-form-card hidden">
+                <h3 class="i18n-text">पशु खर्चा जोड़ें</h3>
+                <form id="invest-form">
+                    <label class="i18n-text">तारीख चुनें</label>
+                    <input type="date" id="i-date" required>
+                    
+                    <label class="i18n-text">पशु का प्रकार चुनें</label>
+                    <select id="i-animal">
+                        <option value="भैंस">भैंस (Buffalo)</option>
+                        <option value="गाय">गाय (Cow)</option>
+                        <option value="भैंस का बच्चा" class="i18n-text">भैंस का बच्चा (Buffalo Calf)</option>
+                        <option value="गाय का बच्चा" class="i18n-text">गाय का बच्चा (Cow Calf)</option>
+                        <option value="अन्य">अन्य (General)</option>
+                    </select>
+                    
+                    <label class="i18n-text">खर्चे की केटेगरी</label>
+                    <select id="i-cat">
+                        <option>चारा/खली (Feed)</option>
+                        <option>दवाई (Medicine)</option>
+                        <option>देखभाल (Maintenance)</option>
+                        <option>अन्य (Others)</option>
+                    </select>
+                    
+                    <label class="i18n-text">कुल खर्चा (₹)</label>
+                    <input type="number" id="i-amt" placeholder="रकम लिखें" step="any" required>
+                    <button type="submit" class="btn-save" style="background:var(--secondary)">💾 <span class="i18n-text">खर्चा सेव करें</span></button>
+                </form>
+
+                <div class="divider"></div>
+                <h3 style="margin-top: 10px;" class="i18n-text">📅 पिछले खर्चे देखें</h3>
+                <label class="i18n-text">महीना चुनें (Filter)</label>
+                <input type="month" id="filter-month-invest" onchange="renderAll()" style="margin-bottom: 10px; background: var(--input-bg); color: var(--text); border: 2px solid var(--secondary);">
+                
+                <div class="table-container" style="margin-top: 20px;">
+                    <table id="invest-table">
+                        <thead>
+                            <tr>
+                                <th class="i18n-text" style="background: #2980b9;">तारीख</th>
+                                <th class="i18n-text" style="background: #2980b9;">विवरण</th>
+                                <th class="i18n-text" style="background: #2980b9;">रकम</th>
+                                <th style="text-align:center; background: #2980b9;" class="i18n-text">एक्शन</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invest-body"></tbody>
+                    </table>
+                </div>
+                <button onclick="downloadImage('invest')" class="btn-save" style="background: #2980b9; box-shadow: 0 4px 10px rgba(41, 128, 185, 0.3);">🖼️ <span class="i18n-text">खर्चे की फोटो (Image) सेव करें</span></button>
+
+                <div class="divider" style="margin-top: 35px; border-top: 2px dashed #8e44ad; background: transparent;"></div>
+                <h3 style="color: #8e44ad; font-size: 18px;" class="i18n-text">🧬 पशु गर्भाधान - ट्रैकर</h3>
+                
+                <form id="ai-form">
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex:1">
+                            <label style="color: #8e44ad;" class="i18n-text">पशु का प्रकार</label>
+                            <select id="ai-animal" required onchange="updateBreeds()">
+                                <option value="भैंस">भैंस (Buffalo)</option>
+                                <option value="गाय">गाय (Cow)</option>
+                            </select>
+                        </div>
+                        <div style="flex:1">
+                            <label style="color: #8e44ad;" class="i18n-text">नाम/पहचान (टैग)</label>
+                            <input type="text" id="ai-name" required>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <div style="flex:1">
+                            <label style="color: #8e44ad;" class="i18n-text">पशु की नस्ल</label>
+                            <select id="ai-breed" required></select>
+                        </div>
+                        <div style="flex:1">
+                            <label style="color: #8e44ad;" class="i18n-text">सीमन की नस्ल</label>
+                            <select id="ai-semen-breed" required></select>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <div style="flex:1">
+                            <label style="color: #8e44ad;" class="i18n-text">सीमन की तारीख</label>
+                            <input type="date" id="ai-date" required onchange="calcDelivery()">
+                        </div>
+                        <div style="flex:1">
+                            <label style="color: #c0392b;" class="i18n-text">डिलीवरी (अनुमानित)</label>
+                            <input type="date" id="ai-delivery" readonly style="background: var(--input-bg); border-color: #e74c3c; color: #c0392b; cursor: not-allowed;">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-save" style="background: #8e44ad; box-shadow: 0 4px 10px rgba(142, 68, 173, 0.3);">💾 <span class="i18n-text">रिकॉर्ड सेव करें</span></button>
+                </form>
+                
+                <div class="table-container" style="margin-top: 15px;">
+                    <table id="ai-table">
+                        <thead>
+                            <tr>
+                                <th style="background: #8e44ad;" class="i18n-text">पशु/नाम (नस्ल)</th>
+                                <th style="background: #8e44ad;" class="i18n-text">सीमन (नस्ल)</th>
+                                <th style="background: #8e44ad;" class="i18n-text">डिलीवरी</th>
+                                <th style="text-align:center; background: #8e44ad;" class="i18n-text">एक्शन</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ai-body"></tbody>
+                    </table>
+                </div>
+                <button onclick="downloadImage('ai')" class="btn-save" style="background: #8e44ad; box-shadow: 0 4px 10px rgba(142, 68, 173, 0.3);">🖼️ <span class="i18n-text">गर्भाधान की पर्ची (Image) सेव करें</span></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="install-banner" class="hidden">
+        <div style="text-align: left;">
+            <div style="font-size: 14px; font-weight: bold;" class="i18n-text">अपनी डेयरी ऐप इंस्टॉल करें</div>
+            <div style="font-size: 11px; opacity: 0.9;" class="i18n-text">तेज़ एक्सेस के लिए होम स्क्रीन पर जोड़ें</div>
+        </div>
+        <button id="install-btn" onclick="installPWA()" class="i18n-text">इंस्टॉल करें</button>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+           apiKey: "AIzaSyDc9sLdQ-qVTB7SF_qOHxOP3-D8QhI7y78",
+           authDomain: "lohar-dairy-farm.firebaseapp.com",
+           projectId: "lohar-dairy-farm",
+           storageBucket: "lohar-dairy-farm.firebasestorage.app",
+           messagingSenderId: "101956058124",
+           appId: "1:101956058124:web:7e3b016dbdca3532d8c229",
+           measurementId: "G-LWG4768X8M"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        const dictionary = {
+            "en": {
+                "लोहार डेयरी फार्म": "Lohar Dairy Farm", "अपनी डेयरी": "Lohar Dairy Farm", 
+                "सेटिंग्स": "Settings", "वर्तमान लॉगिन अकाउंट:": "Logged in as:",
+                "भाषा (Language)": "Language", "ऐप का रंग (Color)": "App Color", "डार्क मोड": "Dark Mode", 
+                "शेयर करें": "Share App", "सहायता": "Support", "🔑 पासवर्ड बदलें": "🔑 Change Password", 
+                "ऐप डाउनलोड/इंस्टॉल करें": "Install App", "लॉगआउट करें (Logout)": "Logout", "प्रोफाइल एडिट करें": "Edit Profile", 
+                "फोटो बदलें": "Change Photo", "अपडेट करें": "Update Profile", "इस महीने": "This Month", 
+                "पिछले महीने": "Last Month", "बदलाव": "Change", "दूध एंट्री": "Milk Entry", "दूध बंधी": "Milk Sales", 
+                "पशु ट्रैकर": "Cattle Tracker", "दूध का हिसाब जोड़ें": "Add Milk Record", "शिफ्ट चुनें": "Select Shift", 
+                "तारीख": "Date", "मात्रा (लीटर)": "Qty (Liters)", "भाव (₹)": "Rate (₹)", "डेटा सेव करें": "Save Data",
+                "📅 पिछली एंट्री देखें": "📅 View Past Entries", "महीना चुनें (Filter)": "Select Month (Filter)",
+                "मात्रा (भाव)": "Qty (Rate)", "रकम": "Amount", "एक्शन": "Action", "दूध का बिल (Image) सेव करें": "Save Milk Bill (Image)",
+                "ग्राहक (दूध बंधी) जोड़ें": "Add Milk Customer", "ग्राहक का नाम": "Customer Name", "मोबाइल नंबर": "Mobile Number",
+                "कुल रकम (₹)": "Total Amount (₹)", "बंधी एंट्री सेव करें": "Save Entry", "📅 ग्राहक का हिसाब (कुल बकाया)": "📅 Customer Due Summary",
+                "का कुल बकाया हिसाब:": "'s Due Summary:", "मात्रा:": "Qty:", "ली": "Ltr", "रकम:": "Amount:",
+                "WhatsApp पर बिल भेजें": "Send Bill on WhatsApp", "ग्राहक/मात्रा": "Customer/Qty", "बंधी का बिल (Image) सेव करें": "Save Sales Bill (Image)",
+                "पशु खर्चा जोड़ें": "Add Cattle Expense", "पशु का प्रकार चुनें": "Select Cattle Type", "खर्चे की केटेगरी": "Expense Category",
+                "कुल खर्चा (₹)": "Total Expense (₹)", "खर्चा सेव करें": "Save Expense", "📅 पिछले खर्चे देखें": "📅 View Past Expenses",
+                "विवरण": "Details", "खर्चे की फोटो (Image) सेव करें": "Save Expense Bill (Image)", "🧬 पशु गर्भाधान - ट्रैकर": "🧬 Cattle Insemination Tracker",
+                "पशु का प्रकार": "Cattle Type", "नाम/पहचान (टैग)": "Name/Tag ID", "सीमन की तारीख": "Insemination Date",
+                "डिलीवरी (अनुमानित)": "Delivery (Est.)", "रिकॉर्ड सेव करें": "Save Record", "पशु/नाम": "Cattle/Name",
+                "सीमन": "Insemination", "डिलीवरी": "Delivery", "अपनी डेयरी ऐप इंस्टॉल करें": "Install Apni Dairy App",
+                "तेज़ एक्सेस के लिए होम स्क्रीन पर जोड़ें": "Add to home screen for fast access", "इंस्टॉल करें": "Install",
+                "जारीकर्ता:": "Issued by:", "दिनांक:": "Date:", "एंट्री का प्रकार": "Entry Type",
+                "🥛 दूध दिया (Sale)": "🥛 Milk Sale", "💰 पैसे जमा किए (Payment Received)": "💰 Payment Received",
+                "कुल दूध:": "Total Milk:", "जमा:": "Paid:", "बकाया:": "Net Due:", "पैसे जमा": "Payment",
+                "भैंस का बच्चा": "Buffalo Calf", "गाय का बच्चा": "Cow Calf", 
+                "पशु की नस्ल": "Cattle Breed", "सीमन की नस्ल": "Semen Breed",
+                "पशु/नाम (नस्ल)": "Cattle/Name (Breed)", "सीमन (नस्ल)": "Insemination (Breed)",
+                "गर्भाधान की पर्ची (Image) सेव करें": "Save AI Slip (Image)"
+            }
+        };
+
+        let currentLang = 'hi';
+
+        function changeAppLanguage() {
+            const selectedLang = document.getElementById('lang-select').value;
+            localStorage.setItem('dairy_app_lang', selectedLang);
+            applyLanguage(selectedLang);
+        }
+
+        function applyLanguage(lang) {
+            currentLang = lang;
+            document.getElementById('lang-select').value = lang;
+            
+            if(lang === 'hi') { location.reload(); return; }
+            const dict = dictionary[lang];
+            if(!dict) return;
+
+            const elements = document.querySelectorAll('.i18n-text');
+            elements.forEach(el => {
+                let originalText = el.getAttribute('data-hi');
+                if(!originalText) { 
+                    originalText = el.innerText.trim(); 
+                    el.setAttribute('data-hi', originalText); 
+                }
+                if(dict[originalText]) { el.innerText = dict[originalText]; }
+            });
+            renderAll(); 
+            updateBreeds(); 
+        }
+
+        function setAppColor(color) {
+            document.documentElement.setAttribute('data-color', color);
+            localStorage.setItem('dairy_app_color', color);
+            
+            const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+            if (color === 'green') metaThemeColor.setAttribute('content', '#2d6a4f');
+            if (color === 'blue') metaThemeColor.setAttribute('content', '#2980b9');
+            if (color === 'orange') metaThemeColor.setAttribute('content', '#d35400');
+            if (color === 'purple') metaThemeColor.setAttribute('content', '#8e44ad');
+
+            document.querySelectorAll('.color-circle').forEach(el => el.classList.remove('active'));
+            const activeCircle = document.getElementById('color-' + color);
+            if(activeCircle) activeCircle.classList.add('active');
+        }
+
+        function shareMyDairyApp() {
+            const shareText = currentLang === 'hi' ? "लोहार डेयरी फार्म का हिसाब रखने की सबसे बेहतरीन और फ्री ऐप! आज ही इसे अपने मोबाइल में इस्तेमाल करें 🌿" : "Best FREE app for Dairy Management! Try Lohar Dairy Farm App today 🌿";
+            if (navigator.share) { navigator.share({ title: 'लोहार डेयरी फार्म (Lohar Dairy Farm)', text: shareText, url: window.location.href }).catch(err => console.log('Error sharing:', err)); 
+            } else { alert("इस लिंक को कॉपी करके दोस्तों को भेजें:\n\n" + window.location.href); }
+        }
+
+        function contactDeveloperSupport() {
+            const devNumber = "919999999999"; 
+            const msg = encodeURIComponent(currentLang === 'hi' ? "नमस्ते, मुझे 'लोहार डेयरी फार्म' ऐप में सहायता चाहिए।" : "Hi, I need support with the Lohar Dairy Farm App.");
+            window.open(`https://wa.me/${devNumber}?text=${msg}`, '_blank');
+        }
+
+        window.onclick = function(event) { 
+            if (!event.target.closest('.header-right') && !event.target.closest('.dropdown')) { document.querySelectorAll('.dropdown').forEach(d => d.style.display = 'none'); }
+        }
+
+        function showSuccessAnimation(message) {
+            if (navigator.vibrate) { navigator.vibrate([50, 50, 50]); }
+            const toast = document.getElementById('success-toast');
+            document.getElementById('toast-msg').innerText = message;
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 2500);
+        }
+
+        function updateSyncStatus() {
+            const dot = document.getElementById('sync-dot');
+            if (navigator.onLine) { dot.style.backgroundColor = '#27ae60'; } 
+            else { dot.style.backgroundColor = '#e74c3c'; }
+        }
+
+        function triggerSyncAnimation() {
+            const dot = document.getElementById('sync-dot');
+            if (navigator.onLine) {
+                dot.style.backgroundColor = '#f39c12'; 
+                setTimeout(() => { dot.style.backgroundColor = '#27ae60'; }, 1000);
+            }
+        }
+
+        function showSyncStatus() {
+            if (navigator.onLine) { showSuccessAnimation(currentLang === 'hi' ? "डेटा सुरक्षित है (Online) ☁️✅" : "Data is Synced (Online) ☁️✅");
+            } else { showSuccessAnimation(currentLang === 'hi' ? "आप ऑफ़लाइन हैं (Offline) ☁️❌" : "You are Offline ☁️❌"); }
+        }
+
+        window.addEventListener('online', updateSyncStatus);
+        window.addEventListener('offline', updateSyncStatus);
+
+        function switchScreen(screenId) {
+            const screens = ['splash-screen', 'auth-screen', 'signup-screen', 'forgot-screen', 'change-pass-screen', 'setup-screen', 'main-app'];
+            screens.forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function handleStartupFlow() {
+            setTimeout(() => {
+                const isLoggedIn = localStorage.getItem('dairy_logged_in');
+                const savedId = localStorage.getItem('dairy_user_id');
+                const isSetupDone = localStorage.getItem('dairy_profile_setup');
+                if (!savedId) { switchScreen('auth-screen'); } 
+                else if (!isLoggedIn) { switchScreen('auth-screen'); } 
+                else if (!isSetupDone) { switchScreen('setup-screen'); } 
+                else { switchScreen('main-app'); requestNotificationPermission(); checkMilkEntryForNotification(); }
+            }, 3500);
+        }
+
+        function googleLogin() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).then((result) => {
+                const user = result.user;
+                localStorage.setItem('dairy_user_id', user.email);
+                localStorage.setItem('dairy_logged_in', 'true');
+                localStorage.setItem('dairy_uid', user.uid); 
+
+                document.getElementById('setting-display-id').innerText = user.email;
+                syncDataFromCloud(user.uid, user.displayName);
+                
+            }).catch((error) => {
+                alert("लॉगिन में दिक्कत आई: " + error.message);
+            });
+        }
+
+        function syncDataFromCloud(uid, fallbackName) {
+            db.collection("dairy_users").doc(uid).get().then((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    if(data.milk) localStorage.setItem('dairy_milk_v6', data.milk);
+                    if(data.invest) localStorage.setItem('dairy_invest_v6', data.invest);
+                    if(data.ai) localStorage.setItem('dairy_ai_v1', data.ai);
+                    if(data.bandhi) localStorage.setItem('dairy_bandhi_v2', data.bandhi);
+                    if(data.profileName) localStorage.setItem('dairy_u_name', data.profileName);
+                    if(data.profilePic) localStorage.setItem('dairy_u_pic', data.profilePic);
+                    
+                    localStorage.setItem('dairy_profile_setup', 'true');
+                    
+                    const name = data.profileName || fallbackName || 'यूजर';
+                    document.getElementById('nav-user-name-small').innerText = name;
+                    if(data.profilePic) document.getElementById('head-pic').src = data.profilePic;
+
+                    renderAll();
+                    switchScreen('main-app');
+                    requestNotificationPermission(); checkMilkEntryForNotification();
+                    showSuccessAnimation("डेटा क्लाउड से वापस आ गया! ☁️✅");
+                } else {
+                    switchScreen('setup-screen');
+                    if(fallbackName) document.getElementById('setup-name').value = fallbackName;
+                }
+            }).catch((error) => {
+                console.error("Error getting data:", error);
+                if(localStorage.getItem('dairy_profile_setup')) {
+                    switchScreen('main-app');
+                } else {
+                    switchScreen('setup-screen');
+                }
+            });
+        }
+
+        function syncToCloud() {
+            const uid = localStorage.getItem('dairy_uid');
+            if(!uid) return; 
+            
+            const dataToSave = {
+                milk: localStorage.getItem('dairy_milk_v6') || "[]",
+                invest: localStorage.getItem('dairy_invest_v6') || "[]",
+                ai: localStorage.getItem('dairy_ai_v1') || "[]",
+                bandhi: localStorage.getItem('dairy_bandhi_v2') || "[]",
+                profileName: localStorage.getItem('dairy_u_name') || "",
+                profilePic: localStorage.getItem('dairy_u_pic') || "",
+                lastSync: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            db.collection("dairy_users").doc(uid).set(dataToSave, { merge: true })
+            .then(() => {
+                console.log("Data synced to cloud successfully!");
+            }).catch((error) => {
+                console.error("Cloud Sync error: ", error);
+            });
+        }
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                localStorage.setItem('dairy_uid', user.uid);
+            }
+        });
+
+        document.getElementById('signup-form').onsubmit = (e) => {
+            e.preventDefault(); 
+            const idVal = document.getElementById('reg-id').value; const passVal = document.getElementById('reg-pass').value;
+            auth.createUserWithEmailAndPassword(idVal, passVal)
+            .then((userCredential) => {
+                const user = userCredential.user;
+                localStorage.setItem('dairy_user_id', user.email); 
+                localStorage.setItem('dairy_logged_in', 'true');
+                localStorage.setItem('dairy_uid', user.uid);
+                document.getElementById('setting-display-id').innerText = user.email; 
+                document.getElementById('signup-form').reset();
+                alert("अकाउंट सफलतापूर्वक बन गया!"); switchScreen('setup-screen');
+            })
+            .catch((error) => { alert(error.message); });
+        };
+
+        document.getElementById('login-form').onsubmit = (e) => {
+            e.preventDefault(); 
+            const idVal = document.getElementById('login-id').value; const passVal = document.getElementById('login-pass').value;
+            auth.signInWithEmailAndPassword(idVal, passVal)
+            .then((userCredential) => {
+                const user = userCredential.user;
+                localStorage.setItem('dairy_user_id', user.email); 
+                localStorage.setItem('dairy_logged_in', 'true');
+                localStorage.setItem('dairy_uid', user.uid);
+                document.getElementById('setting-display-id').innerText = user.email;
+                syncDataFromCloud(user.uid, user.email);
+            })
+            .catch((error) => { alert("ईमेल या पासवर्ड गलत है!"); });
+        };
+
+        document.getElementById('forgot-form').onsubmit = (e) => {
+            e.preventDefault(); const emailVal = document.getElementById('f-id').value; 
+            auth.sendPasswordResetEmail(emailVal).then(() => {
+                alert(`सुरक्षा लिंक: ${emailVal} पर पासवर्ड रीसेट करने का लिंक भेज दिया गया है!`); 
+                switchScreen('auth-screen'); document.getElementById('forgot-form').reset(); 
+            }).catch((error) => { alert(error.message); });
+        };
+
+        function openChangePassword() {
+            document.querySelectorAll('.dropdown').forEach(d => d.style.display = 'none');
+            switchScreen('change-pass-screen');
+        }
+
+        document.getElementById('change-pass-form').onsubmit = (e) => {
+            e.preventDefault(); const newPass = document.getElementById('cp-new').value;
+            const user = auth.currentUser;
+            if(user) {
+                user.updatePassword(newPass).then(() => {
+                    alert("पासवर्ड सफलतापूर्वक अपडेट कर दिया गया है!"); document.getElementById('change-pass-form').reset(); switchScreen('main-app'); 
+                }).catch((error) => { alert("त्रुटि: आपको सिक्योरिटी के लिए पहले दोबारा लॉगिन करना होगा।"); });
+            }
+        };
+
+        document.getElementById('setup-form').onsubmit = (e) => {
+            e.preventDefault(); const name = document.getElementById('setup-name').value;
+            localStorage.setItem('dairy_u_name', name); document.getElementById('nav-user-name-small').innerText = name;
+            if(document.getElementById('user-name-in')) { document.getElementById('user-name-in').value = name; }
+            const picInput = document.getElementById('setup-pic');
+            if (picInput.files && picInput.files[0]) {
+                processProfileImage(picInput.files[0], function(compressedDataUrl) { 
+                    localStorage.setItem('dairy_u_pic', compressedDataUrl); 
+                    document.getElementById('head-pic').src = compressedDataUrl; 
+                    finishSetup(name); 
+                });
+            } else { finishSetup(name); }
+        };
+
+        function finishSetup(name) {
+            localStorage.setItem('dairy_profile_setup', 'true'); 
+            syncToCloud(); 
+            showSuccessAnimation(currentLang === 'hi' ? "आपका स्वागत है, " + name + "!" : "Welcome, " + name + "!");
+            switchScreen('main-app'); requestNotificationPermission(); checkMilkEntryForNotification();
+        }
+
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault(); deferredPrompt = e; 
+            const installBanner = document.getElementById('install-banner');
+            if(installBanner && !localStorage.getItem('dairy_pwa_installed')) { installBanner.classList.remove('hidden'); }
+            const installBtn = document.getElementById('install-app-btn'); if(installBtn) installBtn.classList.remove('hidden');
+        });
+        
+        window.addEventListener('appinstalled', (evt) => { localStorage.setItem('dairy_pwa_installed', 'true'); document.getElementById('install-banner').classList.add('hidden'); });
+        
+        function installPWA() {
+            if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then((choiceResult) => { deferredPrompt = null; document.getElementById('install-banner').classList.add('hidden'); }); 
+            } else { alert("यह ऐप ब्राउज़र में पहले से इंस्टॉल है। (Chrome इस्तेमाल करें)"); }
+        }
+
+        function requestNotificationPermission() { if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") { Notification.requestPermission(); } }
+        
+        function checkMilkEntryForNotification() {
+            if (!("Notification" in window) || Notification.permission !== "granted") return;
+            const now = new Date(); const hours = now.getHours(); const yyyy = now.getFullYear(); const mm = String(now.getMonth() + 1).padStart(2, '0'); const dd = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${yyyy}-${mm}-${dd}`;
+            const m = JSON.parse(localStorage.getItem('dairy_milk_v6')) || []; const todaysEntries = m.filter(x => x.d === todayStr);
+            const hasMorning = todaysEntries.some(x => x.s === 'morning' || !x.s); const hasEvening = todaysEntries.some(x => x.s === 'evening');
+
+            if (hours >= 8 && hours < 12 && !hasMorning) {
+                const notifKey = `notified_morning_${todayStr}`;
+                if (!localStorage.getItem(notifKey)) { sendNotification("दूध की एंट्री बाकी है! 🥛", "सुप्रभात! आपने आज सुबह की दूध की एंट्री नहीं की है।"); localStorage.setItem(notifKey, 'true'); }
+            }
+            if (hours >= 20 && hours <= 23 && !hasEvening) {
+                const notifKey = `notified_evening_${todayStr}`;
+                if (!localStorage.getItem(notifKey)) { sendNotification("दूध की एंट्री बाकी है! 🌙", "शुभ संध्या! आपने आज शाम की दूध की एंट्री नहीं की है।"); localStorage.setItem(notifKey, 'true'); }
+            }
+        }
+        
+        function sendNotification(title, body) {
+            const options = { body: body, icon: 'applogo.png', badge: 'applogo.png', vibrate: [200, 100, 200] };
+            if(navigator.serviceWorker && navigator.serviceWorker.ready) { navigator.serviceWorker.ready.then(function(registration) { registration.showNotification(title, options); }); 
+            } else { new Notification(title, options); }
+        }
+
+        function processProfileImage(file, callback) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image(); 
+                img.onload = function() {
+                    const canvas = document.createElement('canvas'); const MAX_WIDTH = 250; const scaleSize = MAX_WIDTH / img.width;
+                    canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize; 
+                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
+                    callback(canvas.toDataURL('image/jpeg', 0.8));
+                }; 
+                img.src = event.target.result;
+            }; 
+            reader.readAsDataURL(file);
+        }
+
+        function logoutApp() { 
+            if(confirm(currentLang === 'hi' ? "क्या आप सच में लॉगआउट करना चाहते हैं?" : "Are you sure you want to logout?")) { 
+                auth.signOut().then(() => {
+                    localStorage.removeItem('dairy_logged_in'); 
+                    localStorage.removeItem('dairy_uid');
+                    location.reload(); 
+                });
+            } 
+        }
+
+        function toggleMenu(id) {
+            const menu = document.getElementById(id); const isVisible = menu.style.display === 'block';
+            document.querySelectorAll('.dropdown').forEach(d => d.style.display = 'none'); menu.style.display = isVisible ? 'none' : 'block';
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.card-tab').forEach(t => t.classList.remove('active'));
+            ['milk-box', 'bandhi-box', 'invest-box'].forEach(box => document.getElementById(box).classList.add('hidden'));
+            document.getElementById(`tab-${tab}`).classList.add('active'); document.getElementById(`${tab}-box`).classList.remove('hidden');
+        }
+
+        function generateId() { return Date.now().toString() + Math.floor(Math.random() * 1000).toString(); }
+
+        const breedLists = {
+            "गाय": ["साहीवाल (Sahiwal)", "गिर (Gir)", "जर्सी/HF (Jersey/HF)", "थारपारकर (Tharparkar)", "देशी (Desi)", "अन्य (Other)"],
+            "भैंस": ["मुर्रा (Murrah)", "जाफराबादी (Jafarabadi)", "नीली-रावी (Nili-Ravi)", "बन्नी (Banni)", "देशी (Local)", "अन्य (Other)"]
+        };
+
+        function updateBreeds() {
+            const animalType = document.getElementById('ai-animal').value;
+            const breedSelect = document.getElementById('ai-breed');
+            const semenSelect = document.getElementById('ai-semen-breed');
+            
+            let key = (animalType === 'Cow') ? "गाय" : (animalType === 'Buffalo' ? "भैंस" : animalType);
+            const options = breedLists[key] || breedLists["भैंस"];
+            
+            let optionsHTML = options.map(b => `<option value="${b}">${b}</option>`).join('');
+            breedSelect.innerHTML = optionsHTML;
+            semenSelect.innerHTML = optionsHTML;
+            
+            calcDelivery();
+        }
+
+        function updateDateDisplays() {
+            document.querySelectorAll('input[type="date"]').forEach(el => {
+                if (el.value) {
+                    let parts = el.value.split('-');
+                    if (parts.length === 3) el.setAttribute('data-date', `${parts[2]}-${parts[1]}-${parts[0]}`);
+                } else {
+                    el.setAttribute('data-date', 'DD-MM-YYYY');
+                }
+            });
+        }
+
+        function calcDelivery() {
+            const aiDateStr = document.getElementById('ai-date').value; 
+            const animalType = document.getElementById('ai-animal').value;
+            if(!aiDateStr) return; 
+            
+            const aiDate = new Date(aiDateStr); 
+            let daysToAdd = (animalType === 'गाय' || animalType === 'Cow') ? 283 : 310;
+            aiDate.setDate(aiDate.getDate() + daysToAdd); 
+            
+            const yyyy = aiDate.getFullYear(); 
+            const mm = String(aiDate.getMonth() + 1).padStart(2, '0'); 
+            const dd = String(aiDate.getDate()).padStart(2, '0');
+            document.getElementById('ai-delivery').value = `${yyyy}-${mm}-${dd}`;
+            updateDateDisplays();
+        }
+
+        function toggleBandhiQty() {
+            const type = document.getElementById('b-type').value;
+            const qtyContainer = document.getElementById('b-qty-container');
+            const qtyInput = document.getElementById('b-qty');
+            
+            if(type === 'payment') {
+                qtyContainer.style.display = 'none'; qtyInput.removeAttribute('required'); qtyInput.value = 0;
+            } else {
+                qtyContainer.style.display = 'block'; qtyInput.setAttribute('required', 'true');
+            }
+        }
+
+        // --- 💾 DATA SAVE LOGIC ---
+        document.getElementById('milk-form').onsubmit = (e) => {
+            e.preventDefault();
+            const q = parseFloat(document.getElementById('m-qty').value); const r = parseFloat(document.getElementById('m-rate').value);
+            saveData('dairy_milk_v6', { id: generateId(), d: document.getElementById('m-date').value, s: document.getElementById('m-shift').value, q: q.toFixed(2), t: (q * r).toFixed(2) });
+            showSuccessAnimation(currentLang === 'hi' ? "दूध की एंट्री सेव हो गई!" : "Milk entry saved!"); e.target.reset(); document.getElementById('m-date').valueAsDate = new Date();
+            updateDateDisplays(); 
+        };
+
+        document.getElementById('bandhi-form').onsubmit = (e) => {
+            e.preventDefault();
+            const type = document.getElementById('b-type').value; let q = 0;
+            if(type === 'sale') { q = parseFloat(document.getElementById('b-qty').value).toFixed(2); }
+            const amt = parseFloat(document.getElementById('b-amt').value);
+            saveData('dairy_bandhi_v2', { id: generateId(), type: type, name: document.getElementById('b-name').value.trim(), phone: document.getElementById('b-phone').value.trim(), d: document.getElementById('b-date').value, q: q, amt: amt.toFixed(2) });
+            showSuccessAnimation(currentLang === 'hi' ? "हिसाब सेव हो गया!" : "Entry saved!"); e.target.reset(); document.getElementById('b-date').valueAsDate = new Date(); toggleBandhiQty();
+            updateDateDisplays(); 
+        };
+
+        document.getElementById('invest-form').onsubmit = (e) => {
+            e.preventDefault();
+            const amt = parseFloat(document.getElementById('i-amt').value);
+            saveData('dairy_invest_v6', { id: generateId(), d: document.getElementById('i-date').value, a: document.getElementById('i-animal').value, c: document.getElementById('i-cat').value, amt: amt.toFixed(2) });
+            showSuccessAnimation(currentLang === 'hi' ? "पशु का खर्चा सेव हो गया!" : "Expense saved!"); e.target.reset(); document.getElementById('i-date').valueAsDate = new Date();
+            updateDateDisplays(); 
+        };
+
+        document.getElementById('ai-form').onsubmit = (e) => {
+            e.preventDefault();
+            saveData('dairy_ai_v1', { 
+                id: generateId(), 
+                type: document.getElementById('ai-animal').value, 
+                name: document.getElementById('ai-name').value, 
+                breed: document.getElementById('ai-breed').value, 
+                semen: document.getElementById('ai-semen-breed').value, 
+                aiDate: document.getElementById('ai-date').value, 
+                delDate: document.getElementById('ai-delivery').value 
+            });
+            showSuccessAnimation(currentLang === 'hi' ? "गर्भाधान का रिकॉर्ड सेव हो गया!" : "Tracker record saved!"); 
+            e.target.reset(); document.getElementById('ai-date').valueAsDate = new Date(); updateBreeds(); 
+            updateDateDisplays(); 
+        };
+
+        function saveData(key, obj) { 
+            let list = JSON.parse(localStorage.getItem(key)) || []; list.push(obj); localStorage.setItem(key, JSON.stringify(list)); 
+            renderAll(); triggerSyncAnimation();
+            syncToCloud(); 
+        }
+
+        function deleteRecord(type, id) {
+            if(!confirm(currentLang === 'hi' ? "क्या आप सच में इस एंट्री को मिटाना चाहते हैं?" : "Are you sure you want to delete this entry?")) return;
+            let key = (type === 'milk') ? 'dairy_milk_v6' : (type === 'invest') ? 'dairy_invest_v6' : (type === 'ai') ? 'dairy_ai_v1' : 'dairy_bandhi_v2';
+            let data = JSON.parse(localStorage.getItem(key)) || []; data = data.filter(x => x.id !== id); 
+            localStorage.setItem(key, JSON.stringify(data)); renderAll(); triggerSyncAnimation();
+            syncToCloud(); 
+        }
+
+        function editRecord(type, id) {
+            let key = (type === 'milk') ? 'dairy_milk_v6' : (type === 'invest') ? 'dairy_invest_v6' : (type === 'ai') ? 'dairy_ai_v1' : 'dairy_bandhi_v2';
+            let data = JSON.parse(localStorage.getItem(key)) || []; let record = data.find(x => x.id === id); if(!record) return;
+
+            if(type === 'milk') {
+                document.getElementById('m-date').value = record.d; document.getElementById('m-shift').value = record.s || 'morning'; document.getElementById('m-qty').value = parseFloat(record.q); document.getElementById('m-rate').value = (parseFloat(record.t) / parseFloat(record.q)).toFixed(2); switchTab('milk'); document.getElementById('m-qty').focus();
+            } else if(type === 'invest') {
+                document.getElementById('i-date').value = record.d; document.getElementById('i-animal').value = record.a; document.getElementById('i-cat').value = record.c; document.getElementById('i-amt').value = parseFloat(record.amt); switchTab('invest'); document.getElementById('i-amt').focus();
+            } else if(type === 'ai') {
+                document.getElementById('ai-animal').value = record.type; 
+                updateBreeds(); 
+                document.getElementById('ai-name').value = record.name; 
+                document.getElementById('ai-breed').value = record.breed || ''; 
+                document.getElementById('ai-semen-breed').value = record.semen || ''; 
+                document.getElementById('ai-date').value = record.aiDate; 
+                calcDelivery(); switchTab('invest'); document.getElementById('ai-name').focus();
+            } else if(type === 'bandhi') {
+                document.getElementById('b-name').value = record.name; document.getElementById('b-phone').value = record.phone || ''; document.getElementById('b-date').value = record.d; document.getElementById('b-type').value = record.type || 'sale'; toggleBandhiQty();
+                if(record.type !== 'payment') { document.getElementById('b-qty').value = parseFloat(record.q); }
+                document.getElementById('b-amt').value = parseFloat(record.amt); switchTab('bandhi'); document.getElementById('b-name').focus();
+            }
+            
+            data = data.filter(x => x.id !== id); localStorage.setItem(key, JSON.stringify(data)); renderAll();
+            updateDateDisplays(); 
+            syncToCloud(); 
+        }
+
+        window.currentCustomerWA = { name: '', phone: '', amount: 0 };
+        
+        function sendWhatsAppBill() {
+            if(!window.currentCustomerWA.phone || window.currentCustomerWA.phone.length < 10) {
+                alert(currentLang === 'hi' ? "इस ग्राहक का सही मोबाइल नंबर दर्ज नहीं है! कृपया एंट्री एडिट करके नंबर जोड़ें।" : "Valid mobile number is missing for this customer!"); return;
+            }
+            const msg = currentLang === 'hi' ? `नमस्ते ${window.currentCustomerWA.name} जी,\nआपके 'लोहार डेयरी फार्म' की तरफ से दूध का कुल बकाया बिल ₹${window.currentCustomerWA.amount} हुआ है।\nकृपया समय पर भुगतान करें। धन्यवाद! 🌿` : `Hello ${window.currentCustomerWA.name},\nYour total milk net due from 'Lohar Dairy Farm' is ₹${window.currentCustomerWA.amount}.\nPlease pay on time. Thank you! 🌿`;
+            let phone = window.currentCustomerWA.phone.toString().trim(); if(phone.length === 10) phone = '91' + phone;
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        function formatDateDDMMYYYY(dateStr) {
+            if(!dateStr) return '';
+            let parts = dateStr.split('-');
+            if(parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            return dateStr;
+        }
+
+        // --- 📊 RENDER TABLES & DATA ---
+        function renderAll() {
+            let m = JSON.parse(localStorage.getItem('dairy_milk_v6')) || []; let i = JSON.parse(localStorage.getItem('dairy_invest_v6')) || [];
+            let aiData = JSON.parse(localStorage.getItem('dairy_ai_v1')) || []; let bData = JSON.parse(localStorage.getItem('dairy_bandhi_v2')) || [];
+            
+            const filterMonthMilk = document.getElementById('filter-month').value; const filterMonthInvest = document.getElementById('filter-month-invest').value; const filterCustomer = document.getElementById('filter-customer').value;
+            
+            let filteredMilkData = filterMonthMilk ? m.filter(x => x.d.startsWith(filterMonthMilk)) : m;
+            let filteredInvestData = filterMonthInvest ? i.filter(x => x.d.startsWith(filterMonthInvest)) : i;
+            let filteredBandhiData = filterCustomer ? bData.filter(x => x.name === filterCustomer) : bData;
+            
+            document.getElementById('milk-body').innerHTML = [...filteredMilkData].reverse().map(x => {
+                let fd = formatDateDDMMYYYY(x.d);
+                let shiftText = (x.s === 'evening') ? (currentLang === 'hi' ? 'शाम 🌙' : 'Evening 🌙') : (currentLang === 'hi' ? 'सुबह ☀️' : 'Morning ☀️'); 
+                if(!x.s) shiftText = currentLang === 'hi' ? 'सुबह ☀️' : 'Morning ☀️';
+                let rate = (parseFloat(x.t) / parseFloat(x.q)).toFixed(2); let unit = currentLang === 'hi' ? 'ली' : 'L';
+                
+                return `<tr>
+                    <td>${fd}<br><span style="font-size: 10px; color: var(--primary); font-weight: 900;">${shiftText}</span></td>
+                    <td><b style="color:var(--primary);">${parseFloat(x.q).toFixed(2)} ${unit}</b><br><span style="font-size:11px; color:var(--sub-text);">@ ₹${rate}/${unit}</span></td>
+                    <td><b class="amt" style="color:var(--primary);">₹${parseFloat(x.t).toFixed(2)}</b></td>
+                    <td style="text-align:center; min-width: 50px;"><span class="action-btn" onclick="editRecord('milk', '${x.id}')">✏️</span> <span class="action-btn" onclick="deleteRecord('milk', '${x.id}')">❌</span></td>
+                </tr>`;
+            }).join('');
+            
+            document.getElementById('invest-body').innerHTML = [...filteredInvestData].reverse().slice(0, 20).map(x => {
+                let fd = formatDateDDMMYYYY(x.d);
+                return `<tr>
+                    <td>${fd}</td>
+                    <td>${x.a}: ${x.c}</td>
+                    <td><b class="amt" style="color:var(--primary);">₹${parseFloat(x.amt).toFixed(2)}</b></td>
+                    <td style="text-align:center; min-width: 50px;"><span class="action-btn" onclick="editRecord('invest', '${x.id}')">✏️</span> <span class="action-btn" onclick="deleteRecord('invest', '${x.id}')">❌</span></td>
+                </tr>`;
+            }).join('');
+
+            document.getElementById('ai-body').innerHTML = [...aiData].reverse().map(x => {
+                let fd1 = formatDateDDMMYYYY(x.aiDate);
+                let fd2 = formatDateDDMMYYYY(x.delDate);
+                let breedText = x.breed ? `<br><span style="font-size:9px; color:#555;">(${x.breed})</span>` : '';
+                let semenText = x.semen ? `<br><span style="font-size:9px; color:#555;">(${x.semen})</span>` : '';
+
+                return `<tr>
+                    <td><b style="color:var(--text);">${x.name}</b><br><span style="font-size:10px; font-weight:bold; color:var(--primary);">${x.type}</span>${breedText}</td>
+                    <td>${fd1}${semenText}</td>
+                    <td><b style="color:#c0392b;">${fd2}</b></td>
+                    <td style="text-align:center;"><span class="action-btn" onclick="editRecord('ai', '${x.id}')">✏️</span> <span class="action-btn" onclick="deleteRecord('ai', '${x.id}')">❌</span></td>
+                </tr>`;
+            }).join('');
+                
+            const uniqueCustomers = [...new Set(bData.map(item => item.name))];
+            const dropDown = document.getElementById('filter-customer'); const currentVal = dropDown.value;
+            dropDown.innerHTML = `<option value="">${currentLang === 'hi' ? 'सभी ग्राहक (All Customers)' : 'All Customers'}</option>` + uniqueCustomers.map(c => `<option value="${c}">${c}</option>`).join('');
+            dropDown.value = currentVal; 
+            
+            document.getElementById('bandhi-body').innerHTML = [...filteredBandhiData].reverse().map(x => {
+                let isPayment = (x.type === 'payment'); let bRate = isPayment ? "-" : (parseFloat(x.amt) / parseFloat(x.q)).toFixed(2); let unit = currentLang === 'hi' ? 'ली' : 'Ltr';
+                let typeText = isPayment ? (currentLang === 'hi' ? '💰 पैसे जमा' : '💰 Payment') : `${parseFloat(x.q).toFixed(2)} ${unit} (@ ₹${bRate})`;
+                let amtColor = isPayment ? '#27ae60' : 'var(--primary)'; let amtPrefix = isPayment ? '-' : '';
+                let fd = formatDateDDMMYYYY(x.d);
+
+                return `<tr>
+                    <td>${fd}</td>
+                    <td><b style="color:var(--primary);">${x.name}</b><br><span style="font-size:11px; font-weight:${isPayment ? 'bold' : 'normal'}; color:${isPayment ? '#27ae60' : 'var(--text)'};">${typeText}</span></td>
+                    <td><b class="amt" style="color:${amtColor};">${amtPrefix}₹${parseFloat(x.amt).toFixed(2)}</b></td>
+                    <td style="text-align:center; min-width: 50px;"><span class="action-btn" onclick="editRecord('bandhi', '${x.id}')">✏️</span> <span class="action-btn" onclick="deleteRecord('bandhi', '${x.id}')">❌</span></td>
+                </tr>`;
+            }).join('');
+
+            const summaryBox = document.getElementById('weekly-summary');
+            if(filterCustomer) {
+                summaryBox.classList.remove('hidden'); document.getElementById('ws-name').innerText = filterCustomer;
+                let totalSale = 0, totalPaid = 0, latestPhone = '';
+                filteredBandhiData.forEach(x => { 
+                    if(x.phone) latestPhone = x.phone; 
+                    if(x.type === 'payment') { totalPaid += parseFloat(x.amt); } else { totalSale += parseFloat(x.amt); }
+                });
+                let netDue = totalSale - totalPaid;
+                document.getElementById('ws-sale').innerText = totalSale.toFixed(2); document.getElementById('ws-paid').innerText = totalPaid.toFixed(2); document.getElementById('ws-amt').innerText = netDue.toFixed(2);
+                window.currentCustomerWA = { name: filterCustomer, phone: latestPhone, amount: netDue.toFixed(2) };
+            } else { summaryBox.classList.add('hidden'); }
+            
+            updateInsights(m); if(currentLang === 'en') applyLanguage('en');
+        }
+
+        function updateInsights(mData) {
+            const now = new Date(); const cm = now.getMonth(), cy = now.getFullYear(); const pm = cm === 0 ? 11 : cm - 1; const py = cm === 0 ? cy - 1 : cy;
+            let curT = 0, preT = 0; let curQ = 0, preQ = 0; 
+            
+            mData.forEach(r => { 
+                const rd = new Date(r.d); 
+                if(rd.getMonth() === cm && rd.getFullYear() === cy) { curT += parseFloat(r.t); curQ += parseFloat(r.q); } 
+                else if(rd.getMonth() === pm && rd.getFullYear() === py) { preT += parseFloat(r.t); preQ += parseFloat(r.q); } 
+            });
+            
+            document.getElementById('curr-month-total').innerText = `₹${curT.toFixed(2)}`; document.getElementById('prev-month-total').innerText = `₹${preT.toFixed(2)}`;
+            const ltrText = currentLang === 'hi' ? 'ली' : 'L';
+            document.getElementById('curr-month-qty').innerHTML = `${curQ.toFixed(2)} <span class="i18n-text">${ltrText}</span>`;
+            document.getElementById('prev-month-qty').innerHTML = `${preQ.toFixed(2)} <span class="i18n-text">${ltrText}</span>`;
+            
+            const diff = curT - preT; const st = document.getElementById('diff-status');
+            st.innerText = diff > 0 ? (currentLang === 'hi' ? "📈 बढ़ा" : "📈 Up") : (diff < 0 ? (currentLang === 'hi' ? "📉 घटा" : "📉 Down") : "--"); 
+            st.style.color = diff > 0 ? "#27ae60" : (diff < 0 ? "#e74c3c" : "gray");
+        }
+
+        function saveProfile() {
+            const nameInput = document.getElementById('user-name-in').value;
+            if(nameInput) { localStorage.setItem('dairy_u_name', nameInput); document.getElementById('nav-user-name-small').innerText = nameInput; }
+            const picInput = document.getElementById('user-pic-in');
+            if (picInput.files && picInput.files[0]) {
+                processProfileImage(picInput.files[0], function(compressedDataUrl) { 
+                    localStorage.setItem('dairy_u_pic', compressedDataUrl); document.getElementById('head-pic').src = compressedDataUrl; 
+                    document.querySelectorAll('.dropdown').forEach(d => d.style.display = 'none'); showSuccessAnimation(currentLang === 'hi' ? "प्रोफाइल अपडेट हो गई!" : "Profile Updated!"); 
+                    syncToCloud(); 
+                });
+            } else { document.querySelectorAll('.dropdown').forEach(d => d.style.display = 'none'); showSuccessAnimation(currentLang === 'hi' ? "नाम अपडेट हो गया!" : "Name Updated!"); syncToCloud(); }
+        }
+
+        function getFormattedMonth(selectedMonth, lang) {
+            if (!selectedMonth) return lang === 'hi' ? 'सभी' : 'All';
+            if (selectedMonth.includes('-')) {
+                const parts = selectedMonth.split('-'); const yyyy = parts[0]; const mm = parseInt(parts[1], 10) - 1; 
+                const monthNamesHi = ["जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"];
+                const monthNamesEn = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                return lang === 'hi' ? `${monthNamesHi[mm]} - ${yyyy}` : `${monthNamesEn[mm]} - ${yyyy}`;
+            }
+            return selectedMonth;
+        }
+        
+        // --- 🖼️ IMAGE (PHOTO) DOWNLOAD LOGIC ---
+        function downloadImage(type) {
+            let dataArr; let title = ""; let tableHTML = ""; let fileName = "";
+            let issuerName = localStorage.getItem('dairy_u_name') || (currentLang === 'hi' ? 'यूजर' : 'User');
+
+            if(type === 'milk') {
+                let selectedMonth = document.getElementById('filter-month').value; const m = JSON.parse(localStorage.getItem('dairy_milk_v6')) || []; 
+                dataArr = selectedMonth ? m.filter(x => x.d.startsWith(selectedMonth)) : m;
+                if(dataArr.length === 0) return alert(currentLang === 'hi' ? "इस महीने दूध का कोई डेटा नहीं है!" : "No milk data found for this month!");
+                
+                let formattedMonth = getFormattedMonth(selectedMonth, currentLang);
+                title = currentLang === 'hi' ? `दूध का हिसाब (${formattedMonth})` : `Milk Record (${formattedMonth})`; 
+                fileName = `Milk_Bill_${selectedMonth || 'All'}.jpg`;
+                
+                tableHTML = `<table style="width:100%; border-collapse:collapse; text-align:center; font-size:14px; border:1px solid #000;">
+                    <tr style="background-color:var(--primary); color:#ffffff;">
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'तारीख' : 'Date'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'शिफ्ट' : 'Shift'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'मात्रा (ली)' : 'Qty (L)'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'भाव (₹)' : 'Rate (₹)'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'रकम (₹)' : 'Amount (₹)'}</th>
+                    </tr>`;
+                    
+                let totalLiters = 0, totalAmount = 0;
+                
+                dataArr.forEach(x => { 
+                    totalLiters += parseFloat(x.q); totalAmount += parseFloat(x.t); 
+                    
+                    let shiftText = (x.s === 'evening') ? (currentLang === 'hi' ? 'शाम 🌙' : 'Evening 🌙') : (currentLang === 'hi' ? 'सुबह ☀️' : 'Morning ☀️'); 
+                    if(!x.s) shiftText = currentLang === 'hi' ? 'सुबह ☀️' : 'Morning ☀️';
+                    let rate = (parseFloat(x.t) / parseFloat(x.q)).toFixed(2);
+                    let fd = formatDateDDMMYYYY(x.d);
+
+                    tableHTML += `<tr>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">${fd}</td>
+                        <td style="padding:6px; border:1px solid #000; color:#000; font-weight:bold;">${shiftText}</td>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">${parseFloat(x.q).toFixed(2)}</td>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">₹${rate}</td>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">₹${parseFloat(x.t).toFixed(2)}</td>
+                    </tr>`; 
+                });
+                
+                tableHTML += `<tr style="background-color:#f1f1f1;">
+                    <td colspan="2" style="padding:8px; border:1px solid #000; text-align:right; color:#000; font-weight:bold;">${currentLang === 'hi' ? 'कुल (Total):' : 'Total:'}</td>
+                    <td style="padding:8px; border:1px solid #000; color:#000; font-weight:bold;">${totalLiters.toFixed(2)}</td>
+                    <td style="padding:8px; border:1px solid #000; color:#000; font-weight:bold;">-</td>
+                    <td style="padding:8px; border:1px solid #000; color:#000; font-weight:bold;">₹${totalAmount.toFixed(2)}</td>
+                </tr></table>`;
+
+            } else if (type === 'invest') {
+                let selectedMonth = document.getElementById('filter-month-invest').value; const i = JSON.parse(localStorage.getItem('dairy_invest_v6')) || []; 
+                dataArr = selectedMonth ? i.filter(x => x.d.startsWith(selectedMonth)) : i;
+                if(dataArr.length === 0) return alert(currentLang === 'hi' ? "इस महीने खर्चे का कोई डेटा नहीं है!" : "No expense data found for this month!");
+                
+                let formattedMonth = getFormattedMonth(selectedMonth, currentLang);
+                title = currentLang === 'hi' ? `पशु खर्चे की रिपोर्ट (${formattedMonth})` : `Expense Report (${formattedMonth})`; 
+                fileName = `Kharcha_Bill_${selectedMonth || 'All'}.jpg`;
+
+                tableHTML = `<table style="width:100%; border-collapse:collapse; text-align:center; font-size:14px; border:1px solid #000;">
+                    <tr style="background-color:var(--primary); color:#ffffff;">
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'तारीख' : 'Date'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'पशु' : 'Cattle'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'विवरण' : 'Details'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'रकम (₹)' : 'Amount (₹)'}</th>
+                    </tr>`;
+                    
+                let totalAmount = 0;
+                
+                dataArr.forEach(x => { 
+                    totalAmount += parseFloat(x.amt); 
+                    let fd = formatDateDDMMYYYY(x.d);
+                    tableHTML += `<tr>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">${fd}</td>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">${x.a}</td>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">${x.c}</td>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">₹${parseFloat(x.amt).toFixed(2)}</td>
+                    </tr>`; 
+                });
+                
+                tableHTML += `<tr style="background-color:#f1f1f1;">
+                    <td colspan="3" style="padding:8px; border:1px solid #000; text-align:right; color:#000; font-weight:bold;">${currentLang === 'hi' ? 'कुल खर्चा:' : 'Total Expense:'}</td>
+                    <td style="padding:8px; border:1px solid #000; color:#000; font-weight:bold;">₹${totalAmount.toFixed(2)}</td>
+                </tr></table>`;
+
+            } else if (type === 'bandhi') {
+                let customerFilter = document.getElementById('filter-customer').value; const b = JSON.parse(localStorage.getItem('dairy_bandhi_v2')) || []; 
+                dataArr = customerFilter ? b.filter(x => x.name === customerFilter) : b;
+                if(dataArr.length === 0) return alert(currentLang === 'hi' ? "इस ग्राहक का कोई डेटा नहीं है!" : "No sales data found for this customer!");
+                
+                title = currentLang === 'hi' ? `दूध बंधी बिल: ${customerFilter || 'सभी ग्राहक'}` : `Sales Bill: ${customerFilter || 'All Customers'}`; 
+                fileName = `Bandhi_Bill_${customerFilter || 'All'}.jpg`;
+
+                tableHTML = `<table style="width:100%; border-collapse:collapse; text-align:center; font-size:14px; border:1px solid #000;">
+                    <tr style="background-color:var(--primary); color:#ffffff;">
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'तारीख' : 'Date'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'नाम' : 'Name'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'विवरण/मात्रा' : 'Details/Qty'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'भाव (₹)' : 'Rate (₹)'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'रकम (₹)' : 'Amount (₹)'}</th>
+                    </tr>`;
+                
+                let totalSale = 0, totalPaid = 0;
+                
+                dataArr.forEach(x => { 
+                    let isPayment = (x.type === 'payment');
+                    if(isPayment) { totalPaid += parseFloat(x.amt); } else { totalSale += parseFloat(x.amt); }
+                    
+                    let bRate = isPayment ? "-" : (parseFloat(x.amt) / parseFloat(x.q)).toFixed(2);
+                    let qtyText = isPayment ? (currentLang === 'hi' ? "💰 जमा" : "💰 Paid") : `${parseFloat(x.q).toFixed(2)} ${currentLang === 'hi' ? 'ली' : 'L'}`;
+                    let amtColor = isPayment ? '#27ae60' : '#000'; let amtPrefix = isPayment ? '-' : '';
+                    let fd = formatDateDDMMYYYY(x.d);
+
+                    tableHTML += `<tr>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">${fd}</td>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">${x.name}</td>
+                        <td style="padding:6px; border:1px solid #000; color:${isPayment ? '#27ae60' : '#000'}; font-weight:${isPayment ? 'bold':'normal'};">${qtyText}</td>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">${bRate !== "-" ? '₹'+bRate : '-'}</td>
+                        <td style="padding:6px; border:1px solid #000; color:${amtColor}; font-weight:${isPayment ? 'bold':'normal'};">${amtPrefix}₹${parseFloat(x.amt).toFixed(2)}</td>
+                    </tr>`; 
+                });
+                
+                let netDue = totalSale - totalPaid;
+                
+                tableHTML += `
+                <tr style="background-color:#f9f9f9;"><td colspan="4" style="padding:6px; border:1px solid #000; text-align:right; color:#000; font-weight:bold;">${currentLang === 'hi' ? 'कुल दूध (Total Milk):' : 'Total Milk:'}</td><td style="padding:6px; border:1px solid #000; color:#000; font-weight:bold;">₹${totalSale.toFixed(2)}</td></tr>
+                <tr style="background-color:#eafaf1;"><td colspan="4" style="padding:6px; border:1px solid #000; text-align:right; color:#27ae60; font-weight:bold;">${currentLang === 'hi' ? 'कुल जमा (Total Paid):' : 'Total Paid:'}</td><td style="padding:6px; border:1px solid #000; color:#27ae60; font-weight:bold;">- ₹${totalPaid.toFixed(2)}</td></tr>
+                <tr style="background-color:#fdebd0;"><td colspan="4" style="padding:8px; border:1px solid #000; text-align:right; color:#d35400; font-weight:bold; font-size:16px;">${currentLang === 'hi' ? 'कुल बकाया (Net Due):' : 'Net Due:'}</td><td style="padding:8px; border:1px solid #000; color:#d35400; font-weight:bold; font-size:16px;">₹${netDue.toFixed(2)}</td></tr>
+                </table>`;
+            
+            // ✨ UPDATE: AI Tracker Slip Download Logic ✨
+            } else if (type === 'ai') {
+                const aiData = JSON.parse(localStorage.getItem('dairy_ai_v1')) || []; 
+                dataArr = aiData;
+                if(dataArr.length === 0) return alert(currentLang === 'hi' ? "गर्भाधान का कोई रिकॉर्ड नहीं है!" : "No AI records found!");
+                
+                title = currentLang === 'hi' ? `पशु गर्भाधान रिपोर्ट` : `Cattle Insemination Report`; 
+                fileName = `AI_Tracker_Report.jpg`;
+
+                tableHTML = `<table style="width:100%; border-collapse:collapse; text-align:center; font-size:14px; border:1px solid #000;">
+                    <tr style="background-color:var(--primary); color:#ffffff;">
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'पशु/नाम' : 'Cattle/Name'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'सीमन (नस्ल)' : 'Semen (Breed)'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'सीमन दिनांक' : 'AI Date'}</th>
+                        <th style="padding:8px; border:1px solid #000;">${currentLang === 'hi' ? 'डिलीवरी' : 'Delivery'}</th>
+                    </tr>`;
+                
+                dataArr.forEach(x => { 
+                    let fd1 = formatDateDDMMYYYY(x.aiDate);
+                    let fd2 = formatDateDDMMYYYY(x.delDate);
+                    let breedText = x.breed ? `<br><span style="font-size:11px; color:#555;">(${x.breed})</span>` : '';
+                    let semenText = x.semen ? `${x.semen}` : '-';
+
+                    tableHTML += `<tr>
+                        <td style="padding:6px; border:1px solid #000; color:#000;"><b>${x.name}</b><br><span style="color:var(--primary); font-size:12px;">${x.type}</span>${breedText}</td>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">${semenText}</td>
+                        <td style="padding:6px; border:1px solid #000; color:#000;">${fd1}</td>
+                        <td style="padding:6px; border:1px solid #000; color:#c0392b; font-weight:bold;">${fd2}</td>
+                    </tr>`; 
+                });
+                tableHTML += `</table>`;
+            }
+
+            const printContainer = document.createElement('div');
+            printContainer.style.width = '420px'; printContainer.style.padding = '20px'; printContainer.style.background = '#ffffff'; printContainer.style.position = 'fixed'; printContainer.style.top = '0'; printContainer.style.left = '0'; printContainer.style.zIndex = '-9999';
+
+            printContainer.innerHTML = `
+                <div style="font-family: Arial, sans-serif; color: #000000; background: #ffffff; border: 2px solid #000; padding: 15px; border-radius: 10px;">
+                    <h2 style="color: var(--primary); text-align: center; margin: 0 0 5px 0; font-size: 26px; display: flex; align-items: center; justify-content: center;">
+                        <img src="applogo.png" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; margin-right: 10px; border: 2px solid var(--primary);">
+                        ${currentLang === 'hi' ? 'लोहार डेयरी फार्म' : 'Lohar Dairy Farm'}
+                        <img src="applogo.png" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; margin-left: 10px; border: 2px solid var(--primary);">
+                    </h2>
+                    <h4 style="text-align: center; margin: 0 0 15px 0; color: #333; border-bottom: 2px solid #000; padding-bottom: 10px; font-size: 16px;">${title}</h4>
+                    
+                    <table style="width: 100%; margin-bottom: 12px; font-size: 13px; color: #000; border: none;">
+                        <tr>
+                            <td style="text-align: left; border: none; padding: 0;"><b>${currentLang === 'hi' ? 'जारीकर्ता:' : 'Issued by:'}</b> <span style="color:#d35400;">${issuerName}</span></td>
+                            <td style="text-align: right; border: none; padding: 0;"><b>${currentLang === 'hi' ? 'दिनांक:' : 'Date:'}</b> ${formatDateDDMMYYYY(new Date().toISOString().split('T')[0])}</td>
+                        </tr>
+                    </table>
+                    
+                    ${tableHTML}
+                    
+                    <div style="text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px dashed #000; color: #333; font-size: 14px; font-weight: bold; line-height: 1.5;">
+                        Lohar dairy farm<br>Bordiya kalan<br>Contact - 7089237232 , 9669475816
+                    </div>
+                </div>`;
+
+            document.body.appendChild(printContainer); document.getElementById('img-overlay').style.display = 'flex';
+
+            setTimeout(() => {
+                html2canvas(printContainer, { scale: 3, backgroundColor: "#ffffff", useCORS: true, allowTaint: true }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/jpeg', 0.9); const link = document.createElement('a'); link.href = imgData; link.download = fileName;
+                    document.body.appendChild(link); link.click(); document.body.removeChild(link); document.body.removeChild(printContainer); document.getElementById('img-overlay').style.display = 'none';
+                    showSuccessAnimation(currentLang === 'hi' ? "बिल गैलरी में सेव हो गया! 🖼️" : "Bill saved to gallery! 🖼️");
+                }).catch(err => {
+                    console.error("Image Error: ", err); document.body.removeChild(printContainer); document.getElementById('img-overlay').style.display = 'none'; alert(currentLang === 'hi' ? "फोटो बनाने में समस्या आई। कृपया दोबारा प्रयास करें।" : "Error generating image. Try again.");
+                });
+            }, 800);
+        }
+
+        // --- 📊 EXCEL DOWNLOAD LOGIC ---
+        function downloadExcel(type) {
+            let csvContent = "\uFEFF"; let selectedMonth; let dataArr;
+
+            if(type === 'milk') {
+                selectedMonth = document.getElementById('filter-month').value; const m = JSON.parse(localStorage.getItem('dairy_milk_v6')) || []; dataArr = selectedMonth ? m.filter(x => x.d.startsWith(selectedMonth)) : m;
+                if(dataArr.length === 0) return alert("इस महीने दूध का कोई डेटा नहीं है!");
+                csvContent += `"महीना","तारीख","शिफ्ट","मात्रा (लीटर)","भाव (₹/ली)","रकम (₹)"\n`; let totalLiters = 0, totalAmount = 0;
+                
+                dataArr.forEach(x => {
+                    totalLiters += parseFloat(x.q); totalAmount += parseFloat(x.t);
+                    let formattedDate = formatDateDDMMYYYY(x.d); 
+                    let monthStr = selectedMonth; let shiftText = (x.s === 'evening') ? 'शाम' : 'सुबह'; if(!x.s) shiftText = 'सुबह'; let rate = (parseFloat(x.t) / parseFloat(x.q)).toFixed(2);
+                    csvContent += `"${monthStr}","${formattedDate}","${shiftText}","${parseFloat(x.q).toFixed(2)}","${rate}","${parseFloat(x.t).toFixed(2)}"\n`;
+                });
+                csvContent += `"कुल (Total)","","","${totalLiters.toFixed(2)}","","${totalAmount.toFixed(2)}"\n`; downloadCSV(csvContent, `Milk_Report_${selectedMonth || 'All'}.csv`);
+                
+            } else if (type === 'invest') {
+                selectedMonth = document.getElementById('filter-month-invest').value; const i = JSON.parse(localStorage.getItem('dairy_invest_v6')) || []; dataArr = selectedMonth ? i.filter(x => x.d.startsWith(selectedMonth)) : i;
+                if(dataArr.length === 0) return alert("इस महीने खर्चे का कोई डेटा नहीं है!");
+                csvContent += `"महीना","तारीख","पशु","खर्चे का विवरण","रकम (₹)"\n`; let totalAmount = 0;
+                
+                dataArr.forEach(x => {
+                    totalAmount += parseFloat(x.amt); let formattedDate = formatDateDDMMYYYY(x.d); let monthStr = selectedMonth;
+                    csvContent += `"${monthStr}","${formattedDate}","${x.a}","${x.c}","${parseFloat(x.amt).toFixed(2)}"\n`;
+                });
+                csvContent += `"कुल (Total)","","","","${totalAmount.toFixed(2)}"\n`; downloadCSV(csvContent, `Kharcha_Report_${selectedMonth || 'All'}.csv`);
+
+            } else if (type === 'bandhi') {
+                let customerFilter = document.getElementById('filter-customer').value; const b = JSON.parse(localStorage.getItem('dairy_bandhi_v2')) || []; dataArr = customerFilter ? b.filter(x => x.name === customerFilter) : b;
+                if(dataArr.length === 0) return alert("इस ग्राहक का कोई डेटा नहीं है!");
+                csvContent += `"तारीख","ग्राहक का नाम","मोबाइल नंबर","प्रकार","मात्रा (लीटर)","भाव (₹/ली)","रकम (₹)"\n`; let totalSale = 0, totalPaid = 0;
+                
+                dataArr.forEach(x => {
+                    let isPayment = (x.type === 'payment'); if(isPayment) totalPaid += parseFloat(x.amt); else totalSale += parseFloat(x.amt);
+                    let typeText = isPayment ? "Payment" : "Sale"; let qText = isPayment ? "0" : parseFloat(x.q).toFixed(2); let bRate = isPayment ? "0" : (parseFloat(x.amt) / parseFloat(x.q)).toFixed(2);
+                    let formattedDate = formatDateDDMMYYYY(x.d); 
+                    csvContent += `"${formattedDate}","${x.name}","${x.phone || ''}","${typeText}","${qText}","${bRate}","${parseFloat(x.amt).toFixed(2)}"\n`;
+                });
+                let netDue = totalSale - totalPaid;
+                csvContent += `\n"कुल दूध (Total Sale)","","","","","","${totalSale.toFixed(2)}"\n`; csvContent += `"कुल जमा (Total Paid)","","","","","","-${totalPaid.toFixed(2)}"\n`; csvContent += `"कुल बकाया (Net Due)","","","","","","${netDue.toFixed(2)}"\n`;
+                downloadCSV(csvContent, `Bandhi_Report_${customerFilter || 'All'}.csv`);
+            }
+        }
+        
+        function downloadCSV(csvContent, fileName) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url); link.setAttribute("download", fileName); link.style.visibility = 'hidden';
+            document.body.appendChild(link); link.click(); document.body.removeChild(link); showSuccessAnimation(currentLang === 'hi' ? "एक्सेल फाइल डाउनलोड हो गई!" : "Excel file downloaded!");
+        }
+
+        document.getElementById('dark-toggle').onchange = (e) => { 
+            const theme = e.target.checked ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('dairy_theme', theme); 
+        };
+
+        // --- 🚀 APP INITIALIZATION ---
+        window.onload = () => {
+            handleStartupFlow(); updateSyncStatus(); 
+            
+            const currentId = localStorage.getItem('dairy_user_id'); if(currentId) document.getElementById('setting-display-id').innerText = currentId;
+            const savedName = localStorage.getItem('dairy_u_name') || 'यूजर'; document.getElementById('nav-user-name-small').innerText = savedName; 
+            if(document.getElementById('user-name-in')) { document.getElementById('user-name-in').value = savedName; }
+            
+            const savedPic = localStorage.getItem('dairy_u_pic'); if(savedPic) document.getElementById('head-pic').src = savedPic;
+            const savedTheme = localStorage.getItem('dairy_theme') || 'light'; document.documentElement.setAttribute('data-theme', savedTheme); 
+            if(savedTheme === 'dark') { document.getElementById('dark-toggle').checked = true; }
+            
+            const savedColor = localStorage.getItem('dairy_app_color') || 'green'; setAppColor(savedColor);
+            const savedLang = localStorage.getItem('dairy_app_lang') || 'hi'; if(savedLang === 'en') applyLanguage('en');
+
+            const now = new Date(); document.getElementById('m-date').valueAsDate = now; document.getElementById('i-date').valueAsDate = now; document.getElementById('ai-date').valueAsDate = now; document.getElementById('b-date').valueAsDate = now; 
+            const currentMonthStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0'); document.getElementById('filter-month').value = currentMonthStr; document.getElementById('filter-month-invest').value = currentMonthStr;
+
+            let milkData = JSON.parse(localStorage.getItem('dairy_milk_v6')) || []; let investData = JSON.parse(localStorage.getItem('dairy_invest_v6')) || []; let updated = false;
+            
+            milkData.forEach(x => { if(!x.id) { x.id = generateId(); updated = true; }}); 
+            investData.forEach(x => { if(!x.id) { x.id = generateId(); updated = true; }});
+            
+            if(updated) { localStorage.setItem('dairy_milk_v6', JSON.stringify(milkData)); localStorage.setItem('dairy_invest_v6', JSON.stringify(investData)); }
+
+            updateBreeds(); 
+            calcDelivery(); 
+            renderAll(); 
+            
+            document.querySelectorAll('input[type="date"]').forEach(el => {
+                el.addEventListener('input', updateDateDisplays);
+                el.addEventListener('change', updateDateDisplays);
+            });
+            updateDateDisplays(); 
+            
+            setInterval(checkMilkEntryForNotification, 60000);
+        };
+
+        if ('serviceWorker' in navigator) { 
+            window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').then(reg => console.log('SW Registered!')).catch(err => console.log('SW Failed!', err)); }); 
+        }
+    </script>
+</body>
+</html>

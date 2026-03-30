@@ -1,0 +1,24 @@
+{
+  "name": "लोहार डेयरी फार्म",
+  "short_name": "Lohar Dairy Farm",
+  "description": "डेयरी का हिसाब रखने की सबसे बेहतरीन ऐप। (Developed by Deepak lohar)",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#eafaf1",
+  "theme_color": "#2d6a4f",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "applogo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "applogo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
